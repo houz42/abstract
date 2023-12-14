@@ -48,7 +48,7 @@ func TestEqual(t *testing.T) {
 }
 
 func assertSize(t *testing.T, set sets.Set[int], want int) {
-	if size := set.Size(); size != want {
+	if size := set.Len(); size != want {
 		t.Fatalf("expecting size of set be %d, got %d", want, size)
 	}
 }

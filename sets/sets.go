@@ -6,8 +6,6 @@ package sets
 // You should always use [New] or “make(sets.Set[int])” to create an empty set.
 //
 // A set is not safe for concurrent use by multiple goroutines.
-// For a concurrent safe set, see [syncsets].
-// TODO: a sync set type
 type Set[E comparable] map[E]struct{}
 
 // New creates a set with optional initial elements.
@@ -20,8 +18,8 @@ func New[E comparable](values ...E) Set[E] {
 	return m
 }
 
-// Size returns number of elements in the set.
-func (s Set[E]) Size() int { return len(s) }
+// Len returns number of elements in the set.
+func (s Set[E]) Len() int { return len(s) }
 
 // Contains reports if v is in the set.
 func (s Set[E]) Contains(v E) bool {
@@ -43,6 +41,10 @@ func (s Set[E]) Unset(v E) { delete(s, v) }
 // Sadly, we cannot yet define a map method for set type as:
 //
 //	func (s Set[E]) Map[F comparable](fn func(E) F) Set[F]
+//
+// see go 1.18 [release note] for more details
+//
+// [release note]: https://tip.golang.org/doc/go1.18
 func Map[E, F comparable](s Set[E], fn func(E) F) Set[F] {
 	t := make(Set[F], len(s))
 	for v := range s {
@@ -73,7 +75,7 @@ func (s Set[E]) Filter(fn func(E) bool) Set[E] {
 // If the lengths are different, Equal returns false.
 // Otherwise, the elements are compared one by one, and the comparison stops at the first element in s but not in t.
 func (s Set[E]) Equal(t Set[E]) bool {
-	return s.Size() == t.Size() && s.Subset(t)
+	return s.Len() == t.Len() && s.Subset(t)
 }
 
 // Clone returns a new set contains exactly same elements in s.
@@ -105,7 +107,7 @@ func (s Set[E]) Superset(t Set[E]) bool {
 
 // Union returns a new set contains elements either in s or in t.
 func (s Set[E]) Union(t Set[E]) Set[E] {
-	u := make(Set[E], s.Size()+t.Size())
+	u := make(Set[E], s.Len()+t.Len())
 
 	for v := range s {
 		u.Set(v)
