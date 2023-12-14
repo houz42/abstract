@@ -29,11 +29,11 @@ func (s Set[E]) Contains(v E) bool {
 
 // Set insert an element into a set.
 // If same element is already in the set, Set does nothing.
-func (s Set[E]) Set(v E) { s[v] = struct{}{} }
+func (s Set[E]) Set(v E) Set[E] { s[v] = struct{}{}; return s }
 
 // Unset removes an element from a set.
 // If the element is not in the set, Unset does nothing.
-func (s Set[E]) Unset(v E) { delete(s, v) }
+func (s Set[E]) Unset(v E) Set[E] { delete(s, v); return s }
 
 // Map returns a new set in which each element is a mapping of the original ones.
 // The mapping is done by calling `fn` on each element in the original set.

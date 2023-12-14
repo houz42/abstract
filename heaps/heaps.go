@@ -43,13 +43,15 @@ func NewFunc[E any](less func(x, y E) bool, values ...E) *Heap[E] {
 // Reverse returns a new Heap in which the elements will be pop out in reserved sequence to the original one.
 // That is, if h is a min-heap, a max-heap will be returned, or vice versa.
 func (h *Heap[E]) Reverse() *Heap[E] {
+	values := make([]E, h.Len())
+	copy(values, h.impl.values)
+
 	r := &Heap[E]{
 		impl: &heapImpl[E]{
-			values: make([]E, 0, len(h.impl.values)),
+			values: values,
 			less:   func(x, y E) bool { return h.impl.less(y, x) },
 		},
 	}
-	copy(r.impl.values, h.impl.values)
 	heap.Init(r.impl)
 
 	return r
@@ -60,8 +62,9 @@ func (h *Heap[E]) Len() int { return len(h.impl.values) }
 
 // Push pushes the element x onto the heap.
 // The complexity is O(log n) where n = h.Len().
-func (h *Heap[E]) Push(x E) {
+func (h *Heap[E]) Push(x E) *Heap[E] {
 	heap.Push(h.impl, x)
+	return h
 }
 
 // Pop removes and returns the first element from the heap.
@@ -83,6 +86,27 @@ func (h *Heap[E]) Top() E {
 func (h *Heap[E]) Remove(i int) E {
 	v := heap.Remove(h.impl, i)
 	return v.(E)
+}
+
+// Clone returns a new heap which contains same elements in h.
+func (h *Heap[E]) Clone() *Heap[E] {
+	values := make([]E, 0, h.Len())
+	copy(values, h.impl.values)
+
+	return &Heap[E]{impl: &heapImpl[E]{
+		values: values,
+		less:   h.impl.less,
+	}}
+}
+
+// Merge all elements in h2 to h.
+// Elements in h2 will be kept untouched.
+func (h *Heap[E]) Merge(h2 *Heap[E]) *Heap[E] {
+	for _, v := range h2.impl.values {
+		h.Push(v)
+	}
+
+	return h
 }
 
 type heapImpl[E any] struct {
