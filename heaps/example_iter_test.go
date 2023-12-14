@@ -20,3 +20,14 @@ func ExampleHeap_PopAll() {
 	// 2 7
 	// 3 9
 }
+
+func ExampleHeap_Pop() {
+	h := heaps.New("hello", "world")
+	for _, v := range h.All() {
+		fmt.Println(v)
+	}
+
+	// Unordered Output:
+	// hello
+	// world
+}
