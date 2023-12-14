@@ -1,13 +1,4 @@
 // Package heaps provides a heap implementation for any type.
-// A heap is a tree with the property that each node is the
-// minimum-valued (or maximum if reversed) node in its subtree.
-//
-// The minimum (maximum) element in the tree is the root, at index 0.
-//
-// A heap is a common way to implement a priority queue. To build a priority queue,
-// pass in a less method which orders the elements by their priorities,
-// so Push adds items while Pop removes the highest-priority item from the queue.
-// See the example for more details.
 package heaps
 
 import (
@@ -17,17 +8,28 @@ import (
 
 // Heap is a tree with the property that each node is the minimum-valued (or maximum if reversed)
 // node in its subtree.
+// The minimum (maximum) element in the tree is the root, at index 0.
+//
+// A newly created Heap is a min-heap.
+// If a max-heap is wanted, call [Reverse] on it.
+//
+// A heap is a common way to implement a priority queue. To build a priority queue,
+// pass in a less method which orders the elements by their priorities,
+// so [Push] adds items while [Pop] removes the highest-priority item from the queue.
+// See the example for more details.
+//
+// A Heap is not safe for concurrent use by multiple goroutines.
 type Heap[E any] struct {
 	impl *heapImpl[E]
 }
 
-// New creates a new heap for ordered element types.
+// New creates a new min-heap for ordered element types.
 // The initial values are optional.
 func New[E cmp.Ordered](values ...E) *Heap[E] {
 	return NewFunc(func(x, y E) bool { return x < y }, values...)
 }
 
-// NewFunc creates a new heap for any type.
+// NewFunc creates a new min-heap for any type.
 // The initial values are optional.
 func NewFunc[E any](less func(x, y E) bool, values ...E) *Heap[E] {
 	impl := &heapImpl[E]{
@@ -38,7 +40,8 @@ func NewFunc[E any](less func(x, y E) bool, values ...E) *Heap[E] {
 	return &Heap[E]{impl: impl}
 }
 
-// Reverse returns a new Heap in which the elements will be pop out in reserved sequence to the original one
+// Reverse returns a new Heap in which the elements will be pop out in reserved sequence to the original one.
+// That is, if h is a min-heap, a max-heap will be returned, or vice versa.
 func (h *Heap[E]) Reverse() *Heap[E] {
 	r := &Heap[E]{
 		impl: &heapImpl[E]{

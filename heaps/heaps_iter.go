@@ -4,7 +4,7 @@ package heaps
 
 import "iter"
 
-// PopAll returns an iterator that pops elements in the heap one by one.
+// PopAll returns an iterator that pops elements in the heap by the heap order.
 func (h *Heap[E]) PopAll() iter.Seq2[int, E] {
 	return func(yield func(int, E) bool) {
 		i := 0
