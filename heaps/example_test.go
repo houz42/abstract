@@ -47,7 +47,7 @@ func Example_priorityQueue() {
 
 func ExampleHeap_Remove() {
 	h := heaps.New(1, 5, 3, 2)
-	fmt.Println("removed: ", h.Remove(2))
+	fmt.Println("removed:", h.Remove(2))
 
 	for h.Len() > 0 {
 		fmt.Println(h.Pop())

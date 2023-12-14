@@ -1,0 +1,36 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  test:
+    strategy:
+      matrix:
+        go-version: [ 1.21.x, tip ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Go stable
+        if: matrix.go-version != 'tip'
+        uses: actions/setup-go@master
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install Go tip
+        if: matrix.go-version == 'tip'
+        run: |
+          curl -sL https://storage.googleapis.com/go-build-snap/go/linux-amd64/$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1;}').tar.gz -o gotip.tar.gz
+          ls -lah gotip.tar.gz
+          mkdir -p ~/sdk/gotip
+          tar -C ~/sdk/gotip -xzf gotip.tar.gz
+          ~/sdk/gotip/bin/go version
+          echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
+      - run: go vet ./...
+      - run: go test -timeout 10m -v -race ./...
