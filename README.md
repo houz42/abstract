@@ -1,3 +1,5 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/houz42/abstract.svg)](https://pkg.go.dev/github.com/houz42/abstract)
+
 # Missing abstract data types for Go
 
 We've already got generic type-safe [slices](https://pkg.go.dev/slices) and [maps](https://pkg.go.dev/maps) since Go 1.21, but we want more.
@@ -19,7 +21,7 @@ Sub packages provided here share some common patterns:
 
 - [x] set
 - [x] (type safe) heap
-- [ ] (type safe) list
+- [x] (type safe) list
 - [ ] (type safe) ring
 - [ ] (type safe) stack?
 - [ ] (type safe) queue?
