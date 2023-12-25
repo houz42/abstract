@@ -7,55 +7,66 @@ import (
 	"math/rand"
 )
 
-type node[K cmp.Ordered, V any] struct {
-	key   K
+type node[V any] struct {
 	val   V
 	width []int // for fast random access
-	next  []*node[K, V]
+	next  []*node[V]
 }
 
-type SkipList[K cmp.Ordered, V any] struct {
-	head  *node[K, V]
+type SkipList[V any] struct {
+	head  *node[V]
 	level int
 	size  int
 
-	// TODO: any key type with custom comparator
-	// cmp   func(a, b K) int
+	// cmp returns
+	//
+	//	-1 if x is less than y,
+	//	 0 if x equals y,
+	//	+1 if x is greater than y.
+	//
+	// For floating-point types, a NaN is considered less than any non-NaN,
+	// a NaN is considered equal to a NaN, and -0.0 is equal to 0.0.
+	cmp func(a, b V) int
 }
 
-func New[K cmp.Ordered, V any]() *SkipList[K, V] {
-	return &SkipList[K, V]{
-		head: &node[K, V]{
+func New[V cmp.Ordered]() *SkipList[V] {
+	return NewFunc[V](cmp.Compare)
+}
+
+func NewFunc[V any](cmp func(a, b V) int) *SkipList[V] {
+	return &SkipList[V]{
+		head: &node[V]{
 			width: []int{0},
-			next:  []*node[K, V]{nil},
+			next:  []*node[V]{nil},
 		},
 		level: 1,
+		cmp:   cmp,
 	}
 }
 
-func (sl *SkipList[K, V]) Len() int { return sl.size }
+func (sl *SkipList[V]) Len() int { return sl.size }
 
-func (sl *SkipList[K, V]) Search(key K) (V, bool) {
+func (sl *SkipList[V]) Search(val V) (V, bool) {
 	node := sl.head
 
 	// TODO: jump to best entry level
 	for level := sl.level - 1; level >= 0; level-- {
-		for node.next[level] != nil && node.next[level].key < key {
+		for node.next[level] != nil && sl.cmp(node.next[level].val, val) < 0 {
 			node = node.next[level]
 		}
 	}
 	node = node.next[0]
 
-	if node == nil || node.key != key {
+	if node == nil || sl.cmp(node.val, val) != 0 {
 		var v V
 		return v, false
 	}
 	return node.val, true
 }
 
-func (sl *SkipList[K, V]) Insert(key K, val V) {
+func (sl *SkipList[V]) Insert(val V) {
 	// nodes in each level just before the target
-	updates := make([]*node[K, V], sl.level)
+	updates := make([]*node[V], sl.level)
 
 	// distances between each updates, used to fix width values
 	jumps := make([]int, sl.level)
@@ -63,7 +74,7 @@ func (sl *SkipList[K, V]) Insert(key K, val V) {
 	nd := sl.head
 	for level := sl.level - 1; level >= 0; level-- {
 		jump := 0
-		for nd.next[level] != nil && nd.next[level].key < key {
+		for nd.next[level] != nil && sl.cmp(nd.next[level].val, val) < 0 {
 			jump += nd.width[level]
 			nd = nd.next[level]
 		}
@@ -72,21 +83,19 @@ func (sl *SkipList[K, V]) Insert(key K, val V) {
 	}
 	nd = nd.next[0]
 
-	if nd != nil && nd.key == key {
+	if nd != nil && sl.cmp(nd.val, val) == 0 {
 		nd.val = val
 		return
 	}
 
 	newLevel := sl.randomLevel()
 	if newLevel > sl.level {
-		updates = append(updates, make([]*node[K, V], newLevel-sl.level)...)
+		updates = append(updates, make([]*node[V], newLevel-sl.level)...)
 		jumps = append(jumps, make([]int, newLevel-sl.level)...)
-		sl.head.next = append(sl.head.next, make([]*node[K, V], newLevel-sl.level)...)
+		sl.head.next = append(sl.head.next, make([]*node[V], newLevel-sl.level)...)
 		sl.head.width = append(sl.head.width, make([]int, newLevel-sl.level)...)
 
 		for level := sl.level; level < newLevel; level++ {
-			// updates = append(updates, sl.head)
-			// sl.head.width = append(sl.head.width, sl.size)
 			updates[level] = sl.head
 			sl.head.width[level] = sl.size
 		}
@@ -94,11 +103,10 @@ func (sl *SkipList[K, V]) Insert(key K, val V) {
 		sl.level = newLevel
 	}
 
-	node := &node[K, V]{
-		key:   key,
+	node := &node[V]{
 		val:   val,
 		width: make([]int, newLevel),
-		next:  make([]*node[K, V], newLevel),
+		next:  make([]*node[V], newLevel),
 	}
 
 	for level := 0; level < newLevel; level++ {
@@ -121,34 +129,34 @@ func (sl *SkipList[K, V]) Insert(key K, val V) {
 	sl.size++
 }
 
-func (sl *SkipList[K, V]) randomLevel() int {
+func (sl *SkipList[V]) randomLevel() int {
 	maxLevel := bits.Len64(uint64(sl.size + 1))
 	level := bits.TrailingZeros64(rand.Uint64())
 	return int(min(level, maxLevel)) + 1
 }
 
-func (sl *SkipList[K, V]) Delete(key K) {
-	update := make([]*node[K, V], sl.level)
+func (sl *SkipList[V]) Delete(val V) {
+	updates := make([]*node[V], sl.level)
 
-	nd := sl.head
+	node := sl.head
 	for level := sl.level - 1; level >= 0; level-- {
-		for nd.next[level] != nil && nd.next[level].key < key {
-			nd = nd.next[level]
+		for node.next[level] != nil && sl.cmp(node.next[level].val, val) < 0 {
+			node = node.next[level]
 		}
-		update[level] = nd
+		updates[level] = node
 	}
-	nd = nd.next[0]
+	node = node.next[0]
 
-	if nd == nil || nd.key != key {
+	if node == nil || sl.cmp(node.val, val) != 0 {
 		return
 	}
 
 	for level := 0; level < sl.level; level++ {
-		if update[level].next[level] == nd {
-			update[level].width[level] += nd.width[level] - 1
-			update[level].next[level] = nd.next[level]
+		if updates[level].next[level] == node {
+			updates[level].width[level] += node.width[level] - 1
+			updates[level].next[level] = node.next[level]
 		} else {
-			update[level].width[level]--
+			updates[level].width[level]--
 		}
 	}
 
@@ -161,7 +169,7 @@ func (sl *SkipList[K, V]) Delete(key K) {
 	sl.size--
 }
 
-func (sl *SkipList[K, V]) At(at int) (K, V) {
+func (sl *SkipList[V]) At(at int) V {
 	if at < 0 || at >= sl.size {
 		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", at, sl.size))
 	}
@@ -173,21 +181,17 @@ func (sl *SkipList[K, V]) At(at int) (K, V) {
 			pos += node.width[level]
 			node = node.next[level]
 		}
-
-		if pos == at {
-			return node.key, node.val
-		}
 	}
 
-	return node.key, node.val
+	return node.val
 }
 
-func (sl *SkipList[K, V]) DeleteAt(at int) {
+func (sl *SkipList[V]) DeleteAt(at int) {
 	if at < 0 || at >= sl.size {
 		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", at, sl.size))
 	}
 
-	updates := make([]*node[K, V], sl.level)
+	updates := make([]*node[V], sl.level)
 
 	node := sl.head
 	pos := 0
