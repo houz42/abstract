@@ -6,25 +6,28 @@ We've already got generic type-safe [slices](https://pkg.go.dev/slices) and [map
 
 Sub packages provided here share some common patterns:
 
-- no third-party dependencies (except `golang.org/x` packages)
+- no third-party dependencies (except `golang.org/x` packages),
+- provides alternative constructors for custom types:
+  - [`heaps.NewFunc[MyType](myLessFunc)`](https://pkg.go.dev/github.com/houz42/abstract@v0.0.0-20231225123224-3c21759614ba/heaps#NewFunc)
+  - [`skiplists.NewFunc[MyType](myCmpFunc)`](https://pkg.go.dev/github.com/houz42/abstract@v0.0.0-20231225123224-3c21759614ba/skiplists#NewFunc)
+- provides `Reverse` methods for ordered sequences, to be used for reversion ordinary
+  - [`heaps.New[string].Reverse()`](https://pkg.go.dev/github.com/houz42/abstract@v0.0.0-20231225123224-3c21759614ba/heaps#Heap.Reverse)
+  - [`skiplists.New[int].Reverse()`](https://pkg.go.dev/github.com/houz42/abstract@v0.0.0-20231225123224-3c21759614ba/skiplists#SkipList.Reverse)
 - (most) methods could be chained:
-
-    ```go
-    sets.New[float64](1,2,3,4,5).Union(sets.New(1,3,5,7,9)).Unset(1).Map(math.Sqrt)
-    heaps.New[float64]().Reverse().Push(9).Push(1)
-    ```
-
+  - `sets.New[float64](1,2,3,4,5).Union(sets.New(1,3,5,7,9)).Unset(1).Map(math.Sqrt)`
+  - `heaps.New[float64]().Reverse().Push(9).Push(1)`
 - provides `Clone` methods to get a deep copy of the original one,
 - provides experimental [Iterator]s, see below for usage and development guides.
 
 ## Roadmap
 
 - [x] set
-- [x] (type safe) heap
-- [x] (type safe) list
-- [ ] (type safe) ring
-- [ ] (type safe) stack?
-- [ ] (type safe) queue?
+- [x] heap
+- [x] list
+- [x] skip list
+- [ ] ring
+- [ ] stack?
+- [ ] queue?
 - [ ] chainable maps?
 - [ ] chainable slices?
 
