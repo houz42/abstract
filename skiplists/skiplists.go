@@ -1,5 +1,5 @@
-// Package skiplists implements a [skip list],
-// which can be used as an alternative to a balanced tree.
+// Package skiplists implements a [skip list].
+// A skip list can be used as an alternative to a balanced tree, and as a priority queue.
 // Skip lists have the same expected time bounds as balanced trees but are simpler, faster, and use less space.
 // They also provide additional fast random access methods.
 //
