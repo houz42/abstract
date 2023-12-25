@@ -10,7 +10,7 @@ import (
 
 func ExampleHeap_PopAll() {
 	h := heaps.New(9, 5, 2, 7)
-	for i, v := range h.PopAll() {
+	for i, v := range h.Drain() {
 		fmt.Println(i, v)
 	}
 
@@ -19,15 +19,4 @@ func ExampleHeap_PopAll() {
 	// 1 5
 	// 2 7
 	// 3 9
-}
-
-func ExampleHeap_Pop() {
-	h := heaps.New("hello", "world")
-	for _, v := range h.All() {
-		fmt.Println(v)
-	}
-
-	// Unordered Output:
-	// hello
-	// world
 }
