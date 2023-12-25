@@ -8,7 +8,7 @@ import (
 	"github.com/houz42/abstract/skiplists"
 )
 
-func ExampleSkipList() {
+func Example() {
 	list := skiplists.New[int]()
 
 	list.Insert(3)
@@ -28,6 +28,35 @@ func ExampleSkipList() {
 	// 3 true
 	// 4 true
 	// 0 false
+}
+
+func Example_priorityQueue() {
+
+	type process struct {
+		pid      int
+		niceness int
+	}
+
+	queue := skiplists.NewFunc[process](func(a, b process) int {
+		return cmp.Compare(a.niceness, b.niceness)
+	})
+
+	queue.Insert(process{pid: 1, niceness: -20})
+	queue.Insert(process{pid: 2, niceness: 0})
+	queue.Insert(process{pid: 3, niceness: 10})
+	queue.Insert(process{pid: 4, niceness: -1})
+
+	for queue.Len() > 0 {
+		p := queue.At(0)
+		fmt.Printf("start process %d with niceness %d\n", p.pid, p.niceness)
+		queue.DeleteAt(0)
+	}
+
+	// Output:
+	// start process 1 with niceness -20
+	// start process 4 with niceness -1
+	// start process 2 with niceness 0
+	// start process 3 with niceness 10
 }
 
 func ExampleNewFunc() {
