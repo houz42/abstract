@@ -1,3 +1,12 @@
+// Package skiplists implements a [skip list],
+// which can be used as an alternative to a balanced tree.
+// Skip lists have the same expected time bounds as balanced trees but are simpler, faster, and use less space.
+// They also provide additional fast random access methods.
+//
+// The implementation is based on [A Skip List Cookbook].
+//
+// [A Skip List Cookbook]: https://api.drum.lib.umd.edu/server/api/core/bitstreams/17176ef8-8330-4a6c-8b75-4cd18c570bec/content
+// [skip list]: https://en.wikipedia.org/wiki/Skip_list
 package skiplists
 
 import (
@@ -13,26 +22,31 @@ type node[V any] struct {
 	next  []*node[V]
 }
 
+// SkipList is a probabilistic data structure logically represents an ordered sequence of elements
+// that allows $O(\log n)$ average complexity for search and insertion,
+// as well as random accesses.
+//
+// A SkipList is not safe for concurrent use by multiple goroutines.
 type SkipList[V any] struct {
 	head  *node[V]
 	level int
 	size  int
-
-	// cmp returns
-	//
-	//	-1 if x is less than y,
-	//	 0 if x equals y,
-	//	+1 if x is greater than y.
-	//
-	// For floating-point types, a NaN is considered less than any non-NaN,
-	// a NaN is considered equal to a NaN, and -0.0 is equal to 0.0.
-	cmp func(a, b V) int
+	cmp   func(a, b V) int
 }
 
+// New returns a [SkipList] of any ordered elements
 func New[V cmp.Ordered]() *SkipList[V] {
 	return NewFunc[V](cmp.Compare)
 }
 
+// NewFunc returns a SkipList of any type when a custom cmp function is provided.
+// The `cmp` function should return:
+//   - -1 if a is less than b,
+//   - 0 if a equals b,
+//   - +1 if a is greater than b.
+//
+// NewFunc is intended to be used for types that cannot be ordered by the cmp.Ordered interface
+// or for ordered types with a custom comparison operation (e.g., comparing floats within an approximate epsilon).
 func NewFunc[V any](cmp func(a, b V) int) *SkipList[V] {
 	return &SkipList[V]{
 		head: &node[V]{
@@ -44,8 +58,23 @@ func NewFunc[V any](cmp func(a, b V) int) *SkipList[V] {
 	}
 }
 
+// Reverse returns a new SkipList which sort the elements in reversed order.
+func (sl *SkipList[V]) Reverse() *SkipList[V] {
+	return &SkipList[V]{
+		head:  sl.head,
+		level: sl.level,
+		size:  sl.size,
+		cmp:   func(a, b V) int { return sl.cmp(b, a) },
+	}
+}
+
+// Len returns number of elements in the SkipList
 func (sl *SkipList[V]) Len() int { return sl.size }
 
+// Search returns an element and true if it is in the SkipList,
+// otherwise zero value of type V and false.
+// The returned value is useful when V is a custom type and the provided `cmp` method may
+// return 0 (means equal) for different values, e.g. `cmp` only compares one field of a struct.
 func (sl *SkipList[V]) Search(val V) (V, bool) {
 	node := sl.head
 
@@ -64,6 +93,8 @@ func (sl *SkipList[V]) Search(val V) (V, bool) {
 	return node.val, true
 }
 
+// Insert inserts an element into the SkipList.
+// If the element is already in, the element will be overwritten with the input value.
 func (sl *SkipList[V]) Insert(val V) {
 	// nodes in each level just before the target
 	updates := make([]*node[V], sl.level)
@@ -129,6 +160,8 @@ func (sl *SkipList[V]) Insert(val V) {
 	sl.size++
 }
 
+// Delete deletes an element from the SkipList.
+// If the value is not found, nothing happens.
 func (sl *SkipList[V]) Delete(val V) {
 	updates := make([]*node[V], sl.level)
 
@@ -163,15 +196,17 @@ func (sl *SkipList[V]) Delete(val V) {
 	sl.size--
 }
 
-func (sl *SkipList[V]) At(at int) V {
-	if at < 0 || at >= sl.size {
-		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", at, sl.size))
+// At returns the i-th element in the SkipList.
+// It panics if i is not valid, just like accessing slice element with an out-of-range index.
+func (sl *SkipList[V]) At(i int) V {
+	if i < 0 || i >= sl.size {
+		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
 	}
 
 	node := sl.head
 	pos := 0
 	for level := sl.level - 1; level >= 0; level-- {
-		for node != nil && pos+node.width[level] <= at {
+		for node != nil && pos+node.width[level] <= i {
 			pos += node.width[level]
 			node = node.next[level]
 		}
@@ -180,9 +215,11 @@ func (sl *SkipList[V]) At(at int) V {
 	return node.val
 }
 
-func (sl *SkipList[V]) DeleteAt(at int) {
-	if at < 0 || at >= sl.size {
-		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", at, sl.size))
+// DeleteAt deletes i-th element in the SkipList.
+// It panics if i is not valid, just like accessing slice element with an out-of-range index.
+func (sl *SkipList[V]) DeleteAt(i int) {
+	if i < 0 || i >= sl.size {
+		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
 	}
 
 	updates := make([]*node[V], sl.level)
@@ -190,7 +227,7 @@ func (sl *SkipList[V]) DeleteAt(at int) {
 	node := sl.head
 	pos := 0
 	for level := sl.level - 1; level >= 0; level-- {
-		for node != nil && pos+node.width[level] < at {
+		for node != nil && pos+node.width[level] < i {
 			pos += node.width[level]
 			node = node.next[level]
 		}
