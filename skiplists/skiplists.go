@@ -49,8 +49,8 @@ func (sl *SkipList[V]) Len() int { return sl.size }
 func (sl *SkipList[V]) Search(val V) (V, bool) {
 	node := sl.head
 
-	// TODO: jump to best entry level
-	for level := sl.level - 1; level >= 0; level-- {
+	level := min(sl.level-1, sl.bestEntryLevel())
+	for ; level >= 0; level-- {
 		for node.next[level] != nil && sl.cmp(node.next[level].val, val) < 0 {
 			node = node.next[level]
 		}
@@ -127,12 +127,6 @@ func (sl *SkipList[V]) Insert(val V) {
 	}
 
 	sl.size++
-}
-
-func (sl *SkipList[V]) randomLevel() int {
-	maxLevel := bits.Len64(uint64(sl.size + 1))
-	level := bits.TrailingZeros64(rand.Uint64())
-	return int(min(level, maxLevel)) + 1
 }
 
 func (sl *SkipList[V]) Delete(val V) {
@@ -221,4 +215,14 @@ func (sl *SkipList[V]) DeleteAt(at int) {
 	sl.head.width = sl.head.width[:sl.level]
 
 	sl.size--
+}
+
+func (sl *SkipList[V]) bestEntryLevel() int {
+	return bits.Len64(uint64(sl.size + 1))
+}
+
+func (sl *SkipList[V]) randomLevel() int {
+	maxLevel := bits.Len64(uint64(sl.size + 1))
+	level := bits.TrailingZeros64(rand.Uint64())
+	return int(min(level, maxLevel)) + 1
 }
