@@ -53,6 +53,31 @@ func ExampleNewFunc() {
 	// is
 }
 
+func ExampleSkipList_UpdateAt() {
+	list := skiplists.NewFunc[string](func(a, b string) int {
+		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+	})
+
+	list.Insert("Hello")
+	list.Insert("gopher")
+	list.Insert("Go")
+	list.Insert("is")
+	list.Insert("fun")
+
+	list.UpdateAt(2, "gophers")
+
+	for i := 0; i < 5; i++ {
+		fmt.Println(list.At(i))
+	}
+
+	// Output:
+	// fun
+	// Go
+	// gophers
+	// Hello
+	// is
+}
+
 func ExampleSkipList_At() {
 	list := skiplists.New[int]()
 

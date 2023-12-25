@@ -215,6 +215,25 @@ func (sl *SkipList[V]) At(i int) V {
 	return node.val
 }
 
+// UpdateAt updates the value at the specified index in the SkipList.
+// It panics with a runtime error if the index is out of range.
+func (sl *SkipList[V]) UpdateAt(i int, val V) {
+	if i < 0 || i >= sl.size {
+		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
+	}
+
+	node := sl.head
+	pos := 0
+	for level := sl.level - 1; level >= 0; level-- {
+		for node != nil && pos+node.width[level] <= i {
+			pos += node.width[level]
+			node = node.next[level]
+		}
+	}
+
+	node.val = val
+}
+
 // DeleteAt deletes i-th element in the SkipList.
 // It panics if i is not valid, just like accessing slice element with an out-of-range index.
 func (sl *SkipList[V]) DeleteAt(i int) {
