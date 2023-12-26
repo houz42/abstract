@@ -10,17 +10,10 @@
 package skiplists
 
 import (
-	"cmp"
 	"fmt"
 	"math/bits"
 	"math/rand"
 )
-
-type node[V any] struct {
-	val   V
-	width []int // for fast random access
-	next  []*node[V]
-}
 
 // SkipList is a probabilistic data structure logically represents an ordered sequence of elements
 // that allows $O(\log n)$ average complexity for search and insertion,
@@ -32,40 +25,36 @@ type SkipList[V any] struct {
 	level int
 	size  int
 	cmp   func(a, b V) int
+	opt   Options
 }
 
-// New returns a [SkipList] of any ordered elements
-func New[V cmp.Ordered]() *SkipList[V] {
-	return NewFunc[V](cmp.Compare)
+type node[V any] struct {
+	val   V
+	width []int // for fast random access
+	next  []*node[V]
 }
 
-// NewFunc returns a SkipList of any type when a custom cmp function is provided.
-// The `cmp` function should return:
-//   - -1 if a is less than b,
-//   - 0 if a equals b,
-//   - +1 if a is greater than b.
-//
-// NewFunc is intended to be used for types that cannot be ordered by the cmp.Ordered interface
-// or for ordered types with a custom comparison operation (e.g., comparing floats within an approximate epsilon).
-func NewFunc[V any](cmp func(a, b V) int) *SkipList[V] {
-	return &SkipList[V]{
-		head: &node[V]{
-			width: []int{0},
-			next:  []*node[V]{nil},
-		},
-		level: 1,
-		cmp:   cmp,
-	}
-}
+// Options represents the internal configurations of a SkipList.
+type Options struct {
 
-// Reverse returns a new SkipList which sort the elements in reversed order.
-func (sl *SkipList[V]) Reverse() *SkipList[V] {
-	return &SkipList[V]{
-		head:  sl.head,
-		level: sl.level,
-		size:  sl.size,
-		cmp:   func(a, b V) int { return sl.cmp(b, a) },
-	}
+	// LogP is the log base of the probability of each level (the P  value):
+	//
+	// 	$LogP = - \log_{2}{P}$
+	//
+	// Commonly used P values are:
+	// 	- 0.5  (LogP = 1, the default)
+	// 	- 0.25 (LogP = 2)
+	//
+	// see the [wiki page] for more details about the P value
+	//
+	// [wiki page]: https://en.wikipedia.org/wiki/Skip_list
+	LogP int
+
+	// SizeHint is the expected total size of the elements.
+	// It is used to hint the max level of the SkipList.
+	// If it is not set, max level will be calculated based on current size dynamically.
+	SizeHint int
+	maxLevel int
 }
 
 // Len returns number of elements in the SkipList
@@ -78,7 +67,7 @@ func (sl *SkipList[V]) Len() int { return sl.size }
 func (sl *SkipList[V]) Get(val V) (V, bool) {
 	node := sl.head
 
-	level := min(sl.level, sl.bestEntryLevel()) - 1
+	level := min(sl.level, maxLevel(sl.opt.LogP, sl.size)) - 1
 	for ; level >= 0; level-- {
 		for node.next[level] != nil && sl.cmp(node.next[level].val, val) < 0 {
 			node = node.next[level]
@@ -306,12 +295,38 @@ func (sl *SkipList[V]) DeleteAt(i int) V {
 	return node.val
 }
 
-func (sl *SkipList[V]) bestEntryLevel() int {
-	return bits.Len64(uint64(sl.size)) + 1
+func maxLevel(logP, size int) int {
+	return bits.Len64(uint64(size)+1) / logP
 }
 
 func (sl *SkipList[V]) randomLevel() int {
-	maxLevel := sl.bestEntryLevel()
-	level := bits.TrailingZeros64(rand.Uint64() | (1 << (maxLevel)))
+	level := sl.opt.maxLevel
+	if sl.opt.SizeHint < sl.size {
+		level = maxLevel(sl.opt.LogP, sl.size)
+	}
+	level = bits.TrailingZeros64(rand.Uint64()|(1<<(level*sl.opt.LogP))) / sl.opt.LogP
 	return level + 1
+}
+
+// Option changes a SkipList's Options
+type Option func(*Options)
+
+// SetLogP sets the log base of the P value.
+func SetLogP(logP int) Option {
+	return func(o *Options) {
+		o.LogP = logP
+		o.maxLevel = maxLevel(logP, o.SizeHint)
+	}
+}
+
+// SetSizeHint sets the expected number of elements in the SkipList.
+func SetSizeHint(hint int) Option {
+	return func(o *Options) {
+		o.SizeHint = hint
+		o.maxLevel = maxLevel(o.LogP, hint)
+	}
+}
+
+var defaultOptions = Options{
+	LogP: 1, // P = 0.5
 }
