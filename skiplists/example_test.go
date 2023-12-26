@@ -11,15 +11,15 @@ import (
 func Example() {
 	list := skiplists.New[int]()
 
-	list.Insert(3)
-	list.Insert(2)
-	list.Insert(4)
-	list.Insert(1)
+	list.Set(3)
+	list.Set(2)
+	list.Set(4)
+	list.Set(1)
 
 	list.Delete(2)
 
 	for i := 1; i <= 5; i++ {
-		fmt.Println(list.Search(i))
+		fmt.Println(list.Get(i))
 	}
 
 	// Output:
@@ -41,10 +41,10 @@ func Example_priorityQueue() {
 		return cmp.Compare(a.niceness, b.niceness)
 	})
 
-	queue.Insert(process{pid: 1, niceness: -20})
-	queue.Insert(process{pid: 2, niceness: 0})
-	queue.Insert(process{pid: 3, niceness: 10})
-	queue.Insert(process{pid: 4, niceness: -1})
+	queue.Set(process{pid: 1, niceness: -20})
+	queue.Set(process{pid: 2, niceness: 0})
+	queue.Set(process{pid: 3, niceness: 10})
+	queue.Set(process{pid: 4, niceness: -1})
 
 	for queue.Len() > 0 {
 		p := queue.At(0)
@@ -64,11 +64,11 @@ func ExampleNewFunc() {
 		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 
-	list.Insert("Hello")
-	list.Insert("gopher")
-	list.Insert("Go")
-	list.Insert("is")
-	list.Insert("fun")
+	list.Set("Hello")
+	list.Set("gopher")
+	list.Set("Go")
+	list.Set("is")
+	list.Set("fun")
 
 	for i := 0; i < 5; i++ {
 		fmt.Println(list.At(i))
@@ -87,11 +87,11 @@ func ExampleSkipList_UpdateAt() {
 		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 
-	list.Insert("Hello")
-	list.Insert("gopher")
-	list.Insert("Go")
-	list.Insert("is")
-	list.Insert("fun")
+	list.Set("Hello")
+	list.Set("gopher")
+	list.Set("Go")
+	list.Set("is")
+	list.Set("fun")
 
 	list.UpdateAt(2, "gophers")
 
@@ -110,11 +110,11 @@ func ExampleSkipList_UpdateAt() {
 func ExampleSkipList_At() {
 	list := skiplists.New[int]()
 
-	list.Insert(3)
-	list.Insert(5)
-	list.Insert(2)
-	list.Insert(4)
-	list.Insert(1)
+	list.Set(3)
+	list.Set(5)
+	list.Set(2)
+	list.Set(4)
+	list.Set(1)
 	fmt.Println(list.At(2))
 
 	list.Delete(2)
