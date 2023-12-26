@@ -11,11 +11,11 @@ import (
 func ExampleSkipList_All() {
 	list := skiplists.New[string]()
 
-	list.Insert("Hello")
-	list.Insert("gopher")
-	list.Insert("Go")
-	list.Insert("is")
-	list.Insert("fun")
+	list.Set("Hello")
+	list.Set("gopher")
+	list.Set("Go")
+	list.Set("is")
+	list.Set("fun")
 
 	for i, v := range list.All() {
 		fmt.Println(i, v)
