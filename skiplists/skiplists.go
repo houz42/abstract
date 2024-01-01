@@ -10,6 +10,7 @@
 package skiplists
 
 import (
+	"cmp"
 	"fmt"
 	"math/bits"
 	"math/rand"
@@ -34,27 +35,45 @@ type node[V any] struct {
 	next  []*node[V]
 }
 
-// Options represents the internal configurations of a SkipList.
-type Options struct {
+// New returns a [SkipList] of any ordered elements
+func New[V cmp.Ordered](options ...Option) *SkipList[V] {
+	return NewFunc[V](cmp.Compare, options...)
+}
 
-	// LogP is the log base of the probability of each level (the P  value):
-	//
-	// 	$LogP = - \log_{2}{P}$
-	//
-	// Commonly used P values are:
-	// 	- 0.5  (LogP = 1, the default)
-	// 	- 0.25 (LogP = 2)
-	//
-	// see the [wiki page] for more details about the P value
-	//
-	// [wiki page]: https://en.wikipedia.org/wiki/Skip_list
-	LogP int
+// NewFunc returns a SkipList of any type when a custom cmp function is provided.
+// The `cmp` function should return:
+//   - -1 if a is less than b,
+//   - 0 if a equals b,
+//   - +1 if a is greater than b.
+//
+// NewFunc is intended to be used for types that cannot be ordered by the cmp.Ordered interface
+// or for ordered types with a custom comparison operation (e.g., comparing floats within an approximate epsilon).
+func NewFunc[V any](cmp func(a, b V) int, options ...Option) *SkipList[V] {
+	sl := &SkipList[V]{
+		head: &node[V]{
+			width: []int{0},
+			next:  []*node[V]{nil},
+		},
+		level: 1,
+		cmp:   cmp,
+		opt:   defaultOptions,
+	}
 
-	// SizeHint is the expected total size of the elements.
-	// It is used to hint the max level of the SkipList.
-	// If it is not set, max level will be calculated based on current size dynamically.
-	SizeHint int
-	maxLevel int
+	for _, op := range options {
+		op(&sl.opt)
+	}
+
+	return sl
+}
+
+// Reverse returns a new SkipList which sort the elements in reversed order.
+func (sl *SkipList[V]) Reverse() *SkipList[V] {
+	return &SkipList[V]{
+		head:  sl.head,
+		level: sl.level,
+		size:  sl.size,
+		cmp:   func(a, b V) int { return sl.cmp(b, a) },
+	}
 }
 
 // Len returns number of elements in the SkipList
@@ -89,77 +108,73 @@ CHECK:
 
 // Set inserts an element into the SkipList.
 // If the element is already in, the element will be overwritten with the input value.
-func (sl *SkipList[V]) Set(val V) {
+func (sl *SkipList[V]) Set(val V) *SkipList[V] {
 	// nodes in each level just before the target
 	updates := make([]*node[V], sl.level)
 
-	// distances between each updates, used to fix width values
+	// indexes of each node when jumps to lower level
 	jumps := make([]int, sl.level)
+	pos := -1
 
 	nd := sl.head
 	for level := sl.level - 1; level >= 0; level-- {
-		jump := 0
-		for nd.next[level] != nil && sl.cmp(nd.next[level].val, val) < 0 {
-			jump += nd.width[level]
+		for nd.next[level] != nil && sl.cmp(nd.next[level].val, val) <= 0 {
+			pos += nd.width[level]
 			nd = nd.next[level]
 		}
 		updates[level] = nd
-		jumps[level] = jump
+		jumps[level] = pos
 	}
-	nd = nd.next[0]
 
-	if nd != nil && sl.cmp(nd.val, val) == 0 {
+	if nd.next[0] != nil && sl.cmp(nd.next[0].val, val) == 0 {
 		nd.val = val
-		return
+		return sl
 	}
 
 	newLevel := sl.randomLevel()
 
+	newNode := &node[V]{
+		val:   val,
+		width: make([]int, newLevel),
+		next:  make([]*node[V], newLevel),
+	}
+	pos++ // index of new node
+
 	// add new levels if needed
 	if newLevel > sl.level {
-		updates = append(updates, make([]*node[V], newLevel-sl.level)...)
-		jumps = append(jumps, make([]int, newLevel-sl.level)...)
-		sl.head.next = append(sl.head.next, make([]*node[V], newLevel-sl.level)...)
-		sl.head.width = append(sl.head.width, make([]int, newLevel-sl.level)...)
+		sl.head.next = append(sl.head.next[:sl.level], make([]*node[V], newLevel-sl.level)...)
+		sl.head.width = append(sl.head.width[:sl.level], make([]int, newLevel-sl.level)...)
 
 		for level := sl.level; level < newLevel; level++ {
-			updates[level] = sl.head
-			sl.head.width[level] = sl.size
+			sl.head.next[level] = newNode
+			sl.head.width[level] = pos + 1
+			newNode.width[level] = sl.size - pos
 		}
 
 		sl.level = newLevel
 	}
 
-	// insert the new node to each level
-	node := &node[V]{
-		val:   val,
-		width: make([]int, newLevel),
-		next:  make([]*node[V], newLevel),
+	for level := 0; level < min(newLevel, len(updates)); level++ {
+		newNode.next[level] = updates[level].next[level]
+		updates[level].next[level] = newNode
+
+		left := pos - jumps[level]
+		newNode.width[level] = updates[level].width[level] - left + 1
+		updates[level].width[level] = left
 	}
 
-	for level := 0; level < newLevel; level++ {
-		node.next[level] = updates[level].next[level]
-		updates[level].next[level] = node
-
-		if level == 0 {
-			node.width[0] = 1
-		} else {
-			left := updates[level-1].width[level-1] + jumps[level-1]
-			node.width[level] = updates[level].width[level] - left + 1
-			updates[level].width[level] = left
-		}
-	}
-
-	for level := newLevel; level < sl.level; level++ {
+	for level := newLevel; level < len(updates); level++ {
 		updates[level].width[level]++
 	}
 
 	sl.size++
+
+	return sl
 }
 
-// Delete deletes an element from the SkipList.
-// If the value is not found, nothing happens.
-func (sl *SkipList[V]) Delete(val V) V {
+// Unset removes an element from the SkipList.
+// If the element is not found, nothing happens.
+func (sl *SkipList[V]) Unset(val V) *SkipList[V] {
 	updates := make([]*node[V], sl.level)
 
 	node := sl.head
@@ -169,14 +184,14 @@ func (sl *SkipList[V]) Delete(val V) V {
 		}
 		updates[level] = node
 	}
-	node = node.next[0]
 
+	// the node we are removing
+	node = node.next[0]
 	if node == nil || sl.cmp(node.val, val) != 0 {
-		var v V
-		return v
+		return sl
 	}
 
-	// delete node from each level
+	// remove node from each level
 	for level := 0; level < sl.level; level++ {
 		if updates[level].next[level] == node {
 			updates[level].width[level] += node.width[level] - 1
@@ -184,18 +199,17 @@ func (sl *SkipList[V]) Delete(val V) V {
 		} else {
 			updates[level].width[level]--
 		}
-	}
 
-	// remove higher levels contains nothing
-	for sl.level > 1 && sl.head.next[sl.level-1] == nil {
-		sl.level--
+		// remove higher levels contains nothing
+		if level > 1 && updates[level] == sl.head && sl.head.next[level] == nil {
+			sl.level = level - 1
+			break
+		}
 	}
-	sl.head.next = sl.head.next[:sl.level]
-	sl.head.width = sl.head.width[:sl.level]
 
 	sl.size--
 
-	return node.val
+	return sl
 }
 
 // At returns the i-th element in the SkipList.
@@ -205,14 +219,10 @@ func (sl *SkipList[V]) At(i int) V {
 		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
 	}
 
-	if i == 0 {
-		return sl.head.next[0].val
-	}
-
 	node := sl.head
-	pos := 0
+	pos := -1
 	for level := sl.level - 1; level >= 0; level-- {
-		for node != nil && pos+node.width[level] <= i {
+		for node.next[level] != nil && pos+node.width[level] <= i {
 			pos += node.width[level]
 			node = node.next[level]
 		}
@@ -226,14 +236,15 @@ func (sl *SkipList[V]) At(i int) V {
 
 // UpdateAt updates the value at the specified index in the SkipList.
 // It panics with a runtime error if the index is out of range,
-// or the inserted new value will violate the SkipList's ordering property.
+// or the new value will violate the SkipList's ordering property.
 func (sl *SkipList[V]) UpdateAt(i int, val V) {
 	if i < 0 || i >= sl.size {
 		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
 	}
 
 	node := sl.head
-	pos := 0
+	pos := -1
+
 	for level := sl.level - 1; level >= 0; level-- {
 		for node != nil && pos+node.width[level] < i {
 			pos += node.width[level]
@@ -242,57 +253,52 @@ func (sl *SkipList[V]) UpdateAt(i int, val V) {
 	}
 
 	target := node.next[0]
-	next := target.next[0]
 
 	if sl.cmp(node.val, val) >= 0 {
 		panic("updated value is less than or equal to the previous one")
 	}
-	if next != nil && sl.cmp(val, next.val) >= 0 {
+	if next := target.next[0]; next != nil && sl.cmp(val, next.val) >= 0 {
 		panic("updated value is greater than or equal to the next one")
 	}
 
 	target.val = val
 }
 
-// DeleteAt deletes i-th element in the SkipList.
+// RemoveAt removes the i-th element in the SkipList.
 // It panics if i is not valid, just like accessing slice element with an out-of-range index.
-func (sl *SkipList[V]) DeleteAt(i int) V {
+func (sl *SkipList[V]) RemoveAt(i int) *SkipList[V] {
 	if i < 0 || i >= sl.size {
 		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
 	}
 
-	updates := make([]*node[V], sl.level)
+	// unlike in [Unset], we are sure a node will be removed,
+	// so we can do the removing at the same time as we search for it.
 
 	node := sl.head
-	pos := 0
+	pos := -1
 	for level := sl.level - 1; level >= 0; level-- {
-		for node != nil && pos+node.width[level] < i {
+		for node.next[level] != nil && pos+node.width[level] < i {
 			pos += node.width[level]
 			node = node.next[level]
 		}
-		updates[level] = node
-	}
 
-	node = node.next[0]
+		// the node we are removing must be in the range
+		node.width[level]--
 
-	for level := 0; level < sl.level; level++ {
-		if updates[level].next[level] == node {
-			updates[level].width[level] += node.width[level] - 1
-			updates[level].next[level] = node.next[level]
-		} else {
-			updates[level].width[level]--
+		// found the node we are removing, merge its width with the following part
+		if node.next[level] != nil && pos+node.width[level]+1 == i {
+			node.width[level] += node.next[level].width[level]
+			node.next[level] = node.next[level].next[level]
+
+			if node == sl.head && node.next[level] == nil {
+				sl.level--
+			}
 		}
 	}
 
-	for sl.level > 1 && sl.head.next[sl.level-1] == nil {
-		sl.level--
-	}
-	sl.head.next = sl.head.next[:sl.level]
-	sl.head.width = sl.head.width[:sl.level]
-
 	sl.size--
 
-	return node.val
+	return sl
 }
 
 func maxLevel(logP, size int) int {
@@ -306,6 +312,29 @@ func (sl *SkipList[V]) randomLevel() int {
 	}
 	level = bits.TrailingZeros64(rand.Uint64()|(1<<(level*sl.opt.LogP))) / sl.opt.LogP
 	return level + 1
+}
+
+// Options represents the internal configurations of a SkipList.
+type Options struct {
+
+	// LogP is the log base of the probability of each level (the P  value):
+	//
+	// 	$LogP = - \log_{2}{P}$
+	//
+	// Commonly used P values are:
+	// 	- 0.5  (LogP = 1, the default)
+	// 	- 0.25 (LogP = 2)
+	//
+	// see the [wiki page] for more details about the P value
+	//
+	// [wiki page]: https://en.wikipedia.org/wiki/Skip_list
+	LogP int
+
+	// SizeHint is the expected total size of the elements.
+	// It is used to hint the max level of the SkipList.
+	// If it is not set, max level will be calculated based on current size dynamically.
+	SizeHint int
+	maxLevel int
 }
 
 // Option changes a SkipList's Options

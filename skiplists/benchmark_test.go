@@ -8,56 +8,34 @@ import (
 	"github.com/houz42/abstract/skiplists"
 )
 
-func Benchmark(b *testing.B) {
-	size := 1000
-
-	b.Run("forward insert", func(b *testing.B) {
-		for x := 0; x < b.N; x++ {
-			list := skiplists.New[int]()
-			for i := 0; i < size; i++ {
-				list.Set(i)
-			}
-
-			if list.Len() != size {
-				b.Fatal()
-			}
-		}
-	})
-
-	b.Run("forward delete", func(b *testing.B) {
-		for x := 0; x < b.N; x++ {
-			list := skiplists.New[int]()
-			for i := 0; i < size; i++ {
-				list.Set(i)
-			}
-
-			for i := 0; i < size; i++ {
-				if list.Delete(i) != i {
-					b.Fatal()
-				}
-			}
-		}
-	})
-}
-
 func BenchmarkSkipList(b *testing.B) {
-	size := 100
-	for i := 0; i < 2; i++ {
-		size *= 10
-
+	for size := 1000; size < 1_000_000; size *= 10 {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
-			// basicReadWrite(b, size)
+			basicReadWrite(b, size)
 			randomAccess(b, size)
 		})
 	}
 }
 
+func newList(size int) *skiplists.SkipList[int] {
+	list := skiplists.New[int]()
+	for i := 0; i < size; i++ {
+		list.Set(i)
+	}
+	return list
+}
+
 func basicReadWrite(b *testing.B, size int) {
 	perm := rand.Perm(size)
+
+	random := make([]int, 0, size)
+	for i := 0; i < size; i++ {
+		random = append(random, rand.Intn(size))
+	}
+
 	b.ResetTimer()
 
-	b.Run("insert", func(b *testing.B) {
-
+	b.Run("set", func(b *testing.B) {
 		b.Run("forward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
 				list := skiplists.New[int]()
@@ -85,25 +63,21 @@ func basicReadWrite(b *testing.B, size int) {
 		b.Run("random", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
 				list := skiplists.New[int]()
-				for _, i := range perm {
+				for _, i := range random {
 					list.Set(i)
 				}
-				if list.Len() != size {
+				if list.Len() > size {
 					b.Fatal()
 				}
 			}
 		})
 	})
 
-	b.Run("search", func(b *testing.B) {
+	b.Run("get", func(b *testing.B) {
+		list := newList(size)
+		b.ResetTimer()
 
 		b.Run("forward", func(b *testing.B) {
-			list := skiplists.New[int]()
-			for i := 0; i < size; i++ {
-				list.Set(i)
-			}
-			b.ResetTimer()
-
 			var v int
 			var ok bool
 			for x := 0; x < b.N; x++ {
@@ -117,12 +91,6 @@ func basicReadWrite(b *testing.B, size int) {
 		})
 
 		b.Run("backward", func(b *testing.B) {
-			list := skiplists.New[int]()
-			for i := 0; i < size; i++ {
-				list.Set(i)
-			}
-			b.ResetTimer()
-
 			var v int
 			var ok bool
 			for x := 0; x < b.N; x++ {
@@ -136,12 +104,6 @@ func basicReadWrite(b *testing.B, size int) {
 		})
 
 		b.Run("random", func(b *testing.B) {
-			list := skiplists.New[int]()
-			for i := 0; i < size; i++ {
-				list.Set(i)
-			}
-			b.ResetTimer()
-
 			var v int
 			var ok bool
 			for x := 0; x < b.N; x++ {
@@ -155,49 +117,45 @@ func basicReadWrite(b *testing.B, size int) {
 		})
 	})
 
-	b.Run("delete", func(b *testing.B) {
-
+	b.Run("remove", func(b *testing.B) {
 		b.Run("forward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
+				list := newList(size)
+				// b.ResetTimer()
 
 				for i := 0; i < size; i++ {
-					if list.Delete(i) != i {
-						b.Fatal()
-					}
+					list.Unset(i)
+				}
+				if list.Len() != 0 {
+					b.Fatal()
 				}
 			}
 		})
 
 		b.Run("backward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
+				list := newList(size)
+				// b.ResetTimer()
 
 				for i := size - 1; i >= 0; i-- {
-					if list.Delete(i) != i {
-						b.Fatal()
-					}
+					list.Unset(i)
+				}
+				if list.Len() != 0 {
+					b.Fatal()
 				}
 			}
 		})
 
 		b.Run("random", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
+				list := newList(size)
+				// b.ResetTimer()
 
 				for _, i := range perm {
-					if list.Delete(i) != i {
-						b.Fatal()
-					}
+					list.Unset(i)
+				}
+				if list.Len() != 0 {
+					b.Fatal()
 				}
 			}
 		})
@@ -210,15 +168,11 @@ func randomAccess(b *testing.B, size int) {
 	b.ResetTimer()
 
 	b.Run("at", func(b *testing.B) {
+		list := newList(size)
+		b.ResetTimer()
+
 		b.Run("forward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
-
-				// b.ResetTimer()
-
 				for i := 0; i < size; i++ {
 					if list.At(i) != i {
 						b.Fatal()
@@ -227,13 +181,8 @@ func randomAccess(b *testing.B, size int) {
 			}
 		})
 
-		b.Run("barkward", func(b *testing.B) {
+		b.Run("backward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
-
 				for i := size - 1; i >= 0; i-- {
 					if list.At(i) != i {
 						b.Fatal()
@@ -244,10 +193,6 @@ func randomAccess(b *testing.B, size int) {
 
 		b.Run("random", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
 				for _, i := range perm {
 					if list.At(i) != i {
 						b.Fatal()
@@ -258,18 +203,14 @@ func randomAccess(b *testing.B, size int) {
 
 	})
 
-	b.Run("delete at", func(b *testing.B) {
+	b.Run("remove at", func(b *testing.B) {
 		b.Run("forward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
+				list := newList(size)
+				// b.ResetTimer()
 
 				for i := 0; i < size; i++ {
-					if list.DeleteAt(0) != i {
-						b.Fatal()
-					}
+					list.RemoveAt(0)
 				}
 
 				if list.Len() != 0 {
@@ -280,15 +221,11 @@ func randomAccess(b *testing.B, size int) {
 
 		b.Run("backward", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
+				list := newList(size)
+				// b.ResetTimer()
 
 				for i := size - 1; i >= 0; i-- {
-					if list.DeleteAt(list.Len()-1) != i {
-						b.Fatal()
-					}
+					list.RemoveAt(list.Len() - 1)
 				}
 
 				if list.Len() != 0 {
@@ -299,13 +236,11 @@ func randomAccess(b *testing.B, size int) {
 
 		b.Run("random", func(b *testing.B) {
 			for x := 0; x < b.N; x++ {
-				list := skiplists.New[int]()
-				for i := 0; i < size; i++ {
-					list.Set(i)
-				}
+				list := newList(size)
+				// b.ResetTimer()
 
 				for _, i := range perm {
-					list.DeleteAt(i % list.Len())
+					list.RemoveAt(i % list.Len())
 				}
 
 				if list.Len() != 0 {
