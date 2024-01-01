@@ -8,7 +8,7 @@ import (
 	"github.com/houz42/abstract/heaps"
 )
 
-func ExampleHeap_PopAll() {
+func ExampleHeap_Drain() {
 	h := heaps.New(9, 5, 2, 7)
 	for i, v := range h.Drain() {
 		fmt.Println(i, v)

@@ -81,9 +81,9 @@ func (h *Heap[E]) Top() E {
 	return h.impl.values[0]
 }
 
-// Remove removes and returns the element at index i from the heap.
+// RemoveAt removes and returns the element at index i from the heap.
 // The complexity is O(log n) where n = h.Len().
-func (h *Heap[E]) Remove(i int) E {
+func (h *Heap[E]) RemoveAt(i int) E {
 	v := heap.Remove(h.impl, i)
 	return v.(E)
 }

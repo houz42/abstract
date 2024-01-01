@@ -9,7 +9,7 @@ import (
 func Example() {
 	h := heaps.New(2, 1, 5, 6)
 	h.Push(3)
-	h.Remove(3)
+	h.RemoveAt(3)
 	fmt.Printf("minimum: %d\n", h.Top())
 	for h.Len() > 0 {
 		fmt.Printf("%d ", h.Pop())
@@ -45,9 +45,9 @@ func Example_priorityQueue() {
 	// start process 3 with niceness 10
 }
 
-func ExampleHeap_Remove() {
+func ExampleHeap_RemoveAt() {
 	h := heaps.New(1, 5, 3, 2)
-	fmt.Println("removed:", h.Remove(2))
+	fmt.Println("removed:", h.RemoveAt(2))
 
 	for h.Len() > 0 {
 		fmt.Println(h.Pop())
