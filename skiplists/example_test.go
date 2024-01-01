@@ -16,7 +16,7 @@ func Example() {
 	list.Set(4)
 	list.Set(1)
 
-	list.Delete(2)
+	list.Unset(2)
 
 	for i := 1; i <= 5; i++ {
 		fmt.Println(list.Get(i))
@@ -49,7 +49,7 @@ func Example_priorityQueue() {
 	for queue.Len() > 0 {
 		p := queue.At(0)
 		fmt.Printf("start process %d with niceness %d\n", p.pid, p.niceness)
-		queue.DeleteAt(0)
+		queue.RemoveAt(0)
 	}
 
 	// Output:
@@ -115,12 +115,13 @@ func ExampleSkipList_At() {
 	list.Set(2)
 	list.Set(4)
 	list.Set(1)
+
 	fmt.Println(list.At(2))
 
-	list.Delete(2)
+	list.Unset(2)
 	fmt.Println(list.At(2))
 
-	list.DeleteAt(2)
+	list.RemoveAt(2)
 	fmt.Println(list.At(2))
 
 	// Output:
