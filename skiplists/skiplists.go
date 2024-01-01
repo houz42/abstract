@@ -86,17 +86,15 @@ func (sl *SkipList[V]) Len() int { return sl.size }
 func (sl *SkipList[V]) Get(val V) (V, bool) {
 	node := sl.head
 
-	level := min(sl.level, maxLevel(sl.opt.LogP, sl.size)) - 1
-	for ; level >= 0; level-- {
-		for node.next[level] != nil && sl.cmp(node.next[level].val, val) < 0 {
+	// level := min(sl.level, maxLevel(sl.opt.LogP, sl.size)) - 1
+	for level := sl.level - 1; level >= 0; level-- {
+		for node.next[level] != nil && sl.cmp(node.next[level].val, val) <= 0 {
 			node = node.next[level]
 		}
-		if node.next[level] != nil && sl.cmp(node.next[level].val, val) == 0 {
-			node = node.next[level]
+		if sl.cmp(node.val, val) == 0 {
 			goto CHECK
 		}
 	}
-	node = node.next[0]
 
 CHECK:
 	if node == nil || sl.cmp(node.val, val) != 0 {
@@ -232,36 +230,6 @@ func (sl *SkipList[V]) At(i int) V {
 	}
 
 	return node.val
-}
-
-// UpdateAt updates the value at the specified index in the SkipList.
-// It panics with a runtime error if the index is out of range,
-// or the new value will violate the SkipList's ordering property.
-func (sl *SkipList[V]) UpdateAt(i int, val V) {
-	if i < 0 || i >= sl.size {
-		panic(fmt.Errorf("runtime error: index out of range [%d] with skip list length %d", i, sl.size))
-	}
-
-	node := sl.head
-	pos := -1
-
-	for level := sl.level - 1; level >= 0; level-- {
-		for node != nil && pos+node.width[level] < i {
-			pos += node.width[level]
-			node = node.next[level]
-		}
-	}
-
-	target := node.next[0]
-
-	if sl.cmp(node.val, val) >= 0 {
-		panic("updated value is less than or equal to the previous one")
-	}
-	if next := target.next[0]; next != nil && sl.cmp(val, next.val) >= 0 {
-		panic("updated value is greater than or equal to the next one")
-	}
-
-	target.val = val
 }
 
 // RemoveAt removes the i-th element in the SkipList.
