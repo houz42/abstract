@@ -248,5 +248,6 @@ func randomAccess(b *testing.B, size int) {
 				}
 			}
 		})
+
 	})
 }
